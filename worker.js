@@ -1,28 +1,27 @@
-// Cloudflare Worker (Modules)
 export default {
   async fetch(request, env, ctx) {
+    const targetUrl = "https://septa.alwaysdata.net/vless";
     const url = new URL(request.url);
 
-    // Ubah origin target di sini
-    const ORIGIN_HOST = "septa.alwaysdata.net";
-    const ORIGIN_PATH = "/vless";
+    // Ambil header dari request asli
+    const newHeaders = new Headers(request.headers);
 
-    const upgrade = request.headers.get("Upgrade");
-    const isWS = upgrade && upgrade.toLowerCase() === "websocket";
-
-    // Proxy WebSocket
-    if (isWS) {
-      // Bangun URL origin WS
-      const target = new URL(`https://${ORIGIN_HOST}${ORIGIN_PATH}`);
-
-      // Teruskan handshake ke origin
-      // (fetch() akan menjaga Upgrade: websocket bila request memang WS)
-      const newReq = new Request(target.toString(), request);
-
-      return fetch(newReq);
+    // Jika ini adalah koneksi WebSocket
+    if (request.headers.get("Upgrade") === "websocket") {
+      return fetch(targetUrl, {
+        headers: newHeaders,
+        method: request.method,
+        body: request.body,
+        redirect: "follow"
+      });
     }
 
-    // Untuk request non-WS (opsional): bisa return 404 atau proxy HTTP biasa
-    return new Response("Not Found", { status: 404 });
+    // Untuk request HTTP biasa (non-websocket)
+    return fetch(targetUrl, {
+      headers: newHeaders,
+      method: request.method,
+      body: request.body,
+      redirect: "follow"
+    });
   },
 };
